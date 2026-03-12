@@ -27,12 +27,12 @@ export function useProducts(filters?: { status?: string; sellerId?: string; cate
     queryKey: ['products', filters],
     queryFn: async () => {
       let query = supabase.from('products').select('*').order('created_at', { ascending: false });
-      if (filters?.status) query = query.eq('status', filters.status);
+      if (filters?.status) query = query.eq('status', filters.status as any);
       if (filters?.sellerId) query = query.eq('seller_id', filters.sellerId);
       if (filters?.category) query = query.eq('category', filters.category);
       const { data, error } = await query;
       if (error) throw error;
-      return (data || []) as Product[];
+      return (data || []) as unknown as Product[];
     },
   });
 }
