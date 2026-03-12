@@ -1,17 +1,17 @@
-import { useStore, useAuth } from '@/contexts/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useProducts } from '@/hooks/useProducts';
 import SellerLayout from '@/components/layout/SellerLayout';
-import { Badge } from '@/components/ui/badge';
 
 export default function SellerProductsPage() {
-  const { products } = useStore();
   const { user } = useAuth();
-  // For demo, show products from all sellers when logged as test seller
-  const myProducts = products.filter(p => p.sellerId === user?.id || (user?.email === 'seller@test.com'));
+  const { data: products = [], isLoading } = useProducts({ sellerId: user?.id });
 
   return (
     <SellerLayout>
       <h2 className="font-display text-2xl font-bold mb-6">My Products</h2>
-      {myProducts.length === 0 ? (
+      {isLoading ? (
+        <div className="text-center py-16 text-muted-foreground">Loading...</div>
+      ) : products.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">No products yet.</div>
       ) : (
         <div className="bg-card border rounded-xl overflow-hidden">
@@ -27,12 +27,15 @@ export default function SellerProductsPage() {
                 </tr>
               </thead>
               <tbody>
-                {myProducts.map(p => (
+                {products.map(p => (
                   <tr key={p.id} className="border-t">
                     <td className="p-3">
                       <div className="flex items-center gap-3">
                         <img src={p.image} alt={p.name} className="w-10 h-10 rounded-lg object-cover" />
-                        <span className="font-medium">{p.name}</span>
+                        <div>
+                          <span className="font-medium">{p.name}</span>
+                          {p.rejection_reason && <p className="text-xs text-destructive">{p.rejection_reason}</p>}
+                        </div>
                       </div>
                     </td>
                     <td className="p-3 capitalize">{p.category}</td>

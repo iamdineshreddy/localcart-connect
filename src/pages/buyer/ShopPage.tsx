@@ -1,24 +1,24 @@
 import { useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { useStore } from '@/contexts/AppContext';
+import { useProducts } from '@/hooks/useProducts';
+import { useAddToCart } from '@/hooks/useCart';
 import { CATEGORIES, ProductCategory } from '@/types';
 import BuyerLayout from '@/components/layout/BuyerLayout';
 import { Star, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
 
 export default function ShopPage() {
-  const { products, addToCart } = useStore();
+  const { data: allProducts = [], isLoading } = useProducts({ status: 'approved' });
+  const addToCart = useAddToCart();
   const [searchParams] = useSearchParams();
   const category = searchParams.get('category') as ProductCategory | null;
   const search = searchParams.get('search')?.toLowerCase() || '';
 
   const filtered = useMemo(() => {
-    return products
-      .filter(p => p.status === 'approved')
+    return allProducts
       .filter(p => !category || p.category === category)
       .filter(p => !search || p.name.toLowerCase().includes(search) || p.category.includes(search));
-  }, [products, category, search]);
+  }, [allProducts, category, search]);
 
   return (
     <BuyerLayout>
@@ -32,7 +32,9 @@ export default function ShopPage() {
           </div>
         </div>
 
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <div className="text-center py-20 text-muted-foreground">Loading products...</div>
+        ) : filtered.length === 0 ? (
           <div className="text-center py-20">
             <p className="text-4xl mb-3">🔍</p>
             <p className="font-display font-semibold">No products found</p>
@@ -66,7 +68,7 @@ export default function ShopPage() {
                         <span className="font-display font-bold">₹{product.price}</span>
                         {product.mrp > product.price && <span className="text-xs text-muted-foreground line-through ml-1">₹{product.mrp}</span>}
                       </div>
-                      <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => { addToCart(product); toast.success('Added to cart'); }}>
+                      <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => addToCart.mutate({ productId: product.id })}>
                         <ShoppingCart className="w-3.5 h-3.5" />
                       </Button>
                     </div>

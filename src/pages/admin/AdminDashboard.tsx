@@ -1,13 +1,17 @@
-import { useStore } from '@/contexts/AppContext';
+import { useProducts } from '@/hooks/useProducts';
+import { useOrders } from '@/hooks/useOrders';
+import { useAllProfiles } from '@/hooks/useProfiles';
 import AdminLayout from '@/components/layout/AdminLayout';
-import { Users, Package, ShieldCheck, AlertTriangle, ShoppingBag, TrendingUp } from 'lucide-react';
+import { Users, Package, ShieldCheck, ShoppingBag } from 'lucide-react';
 
 export default function AdminDashboard() {
-  const { products, orders, allUsers } = useStore();
+  const { data: products = [] } = useProducts();
+  const { data: orders = [] } = useOrders('admin');
+  const { data: users = [] } = useAllProfiles();
   const pending = products.filter(p => p.status === 'pending').length;
 
   const stats = [
-    { label: 'Total Users', value: allUsers.length, icon: Users, color: 'bg-primary/10 text-primary' },
+    { label: 'Total Users', value: users.length, icon: Users, color: 'bg-primary/10 text-primary' },
     { label: 'Products', value: products.length, icon: Package, color: 'bg-secondary/10 text-secondary' },
     { label: 'Pending Approval', value: pending, icon: ShieldCheck, color: 'bg-warning/10 text-warning' },
     { label: 'Orders', value: orders.length, icon: ShoppingBag, color: 'bg-info/10 text-info' },
@@ -42,7 +46,7 @@ export default function AdminDashboard() {
               <div className="space-y-3">
                 {orders.slice(0, 5).map(o => (
                   <div key={o.id} className="flex justify-between text-sm">
-                    <span>#{o.id.slice(-6)} — {o.buyerName}</span>
+                    <span>#{o.id.slice(0, 8)} — {o.buyer_name}</span>
                     <span className="font-medium">₹{o.total}</span>
                   </div>
                 ))}

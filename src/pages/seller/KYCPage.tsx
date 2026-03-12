@@ -1,23 +1,24 @@
 import { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useMyKYC, useSubmitKYC } from '@/hooks/useKYC';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Shield, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
+import { Shield, CheckCircle2, Clock, AlertCircle, XCircle } from 'lucide-react';
 
 export default function KYCPage() {
-  const [status, setStatus] = useState<'not_submitted' | 'pending' | 'approved'>('not_submitted');
-  const [form, setForm] = useState({ fullName: '', phone: '', address: '', upiId: '', aadhaar: '', pan: '' });
+  const { data: kyc, isLoading } = useMyKYC();
+  const submitKYC = useSubmitKYC();
+  const [form, setForm] = useState({
+    full_name: '', phone: '', address: '', upi_id: '', bank_account: '', ifsc_code: '',
+    aadhaar_number: '', pan_number: '',
+  });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setStatus('pending');
-    toast.success('KYC submitted for review!');
-  };
+  if (isLoading) return <SellerLayout><div className="text-center py-16 text-muted-foreground">Loading...</div></SellerLayout>;
 
-  if (status === 'approved') {
+  if (kyc?.status === 'approved') {
     return (
       <SellerLayout>
         <div className="max-w-lg mx-auto text-center py-16">
@@ -29,7 +30,7 @@ export default function KYCPage() {
     );
   }
 
-  if (status === 'pending') {
+  if (kyc?.status === 'pending') {
     return (
       <SellerLayout>
         <div className="max-w-lg mx-auto text-center py-16">
@@ -40,6 +41,30 @@ export default function KYCPage() {
       </SellerLayout>
     );
   }
+
+  if (kyc?.status === 'rejected') {
+    return (
+      <SellerLayout>
+        <div className="max-w-lg mx-auto text-center py-16">
+          <XCircle className="w-16 h-16 text-destructive mx-auto mb-4" />
+          <h2 className="font-display text-2xl font-bold mb-2">KYC Rejected</h2>
+          <p className="text-muted-foreground mb-2">Reason: {kyc.rejection_reason || 'Documents not clear'}</p>
+          <Button onClick={() => {
+            setForm({
+              full_name: kyc.full_name, phone: kyc.phone, address: kyc.address,
+              upi_id: kyc.upi_id || '', bank_account: kyc.bank_account || '', ifsc_code: kyc.ifsc_code || '',
+              aadhaar_number: kyc.aadhaar_number, pan_number: kyc.pan_number,
+            });
+          }}>Resubmit KYC</Button>
+        </div>
+      </SellerLayout>
+    );
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    submitKYC.mutate(form);
+  };
 
   return (
     <SellerLayout>
@@ -54,21 +79,30 @@ export default function KYCPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4 bg-card border rounded-xl p-6">
           <div className="grid grid-cols-2 gap-4">
-            <div><Label>Full Name</Label><Input value={form.fullName} onChange={e => setForm({ ...form, fullName: e.target.value })} required /></div>
+            <div><Label>Full Name</Label><Input value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} required /></div>
             <div><Label>Phone Number</Label><Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} required /></div>
           </div>
           <div><Label>Address</Label><Textarea value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} required /></div>
           <div className="grid grid-cols-3 gap-4">
-            <div><Label>UPI ID</Label><Input value={form.upiId} onChange={e => setForm({ ...form, upiId: e.target.value })} placeholder="name@upi" required /></div>
-            <div><Label>Aadhaar Number</Label><Input value={form.aadhaar} onChange={e => setForm({ ...form, aadhaar: e.target.value })} required /></div>
-            <div><Label>PAN Number</Label><Input value={form.pan} onChange={e => setForm({ ...form, pan: e.target.value })} required /></div>
+            <div><Label>UPI ID</Label><Input value={form.upi_id} onChange={e => setForm({ ...form, upi_id: e.target.value })} placeholder="name@upi" /></div>
+            <div><Label>Bank Account</Label><Input value={form.bank_account} onChange={e => setForm({ ...form, bank_account: e.target.value })} /></div>
+            <div><Label>IFSC Code</Label><Input value={form.ifsc_code} onChange={e => setForm({ ...form, ifsc_code: e.target.value })} /></div>
           </div>
-          <div className="grid grid-cols-3 gap-4">
-            <div><Label>Aadhaar Card Image</Label><Input type="file" accept="image/*" /></div>
+          <div className="grid grid-cols-2 gap-4">
+            <div><Label>Aadhaar Number</Label><Input value={form.aadhaar_number} onChange={e => setForm({ ...form, aadhaar_number: e.target.value })} required /></div>
+            <div><Label>PAN Number</Label><Input value={form.pan_number} onChange={e => setForm({ ...form, pan_number: e.target.value })} required /></div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div><Label>Aadhaar Card (Front)</Label><Input type="file" accept="image/*" /></div>
+            <div><Label>Aadhaar Card (Back)</Label><Input type="file" accept="image/*" /></div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
             <div><Label>PAN Card Image</Label><Input type="file" accept="image/*" /></div>
-            <div><Label>Shop Image</Label><Input type="file" accept="image/*" /></div>
+            <div><Label>Shop Photo</Label><Input type="file" accept="image/*" /></div>
           </div>
-          <Button type="submit" className="w-full">Submit KYC Documents</Button>
+          <Button type="submit" className="w-full" disabled={submitKYC.isPending}>
+            {submitKYC.isPending ? 'Submitting...' : 'Submit KYC Documents'}
+          </Button>
         </form>
       </div>
     </SellerLayout>
