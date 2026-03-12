@@ -40,7 +40,11 @@ export function useSubmitFraudReport() {
       const { error } = await supabase.from('fraud_reports').insert({
         reporter_id: user.id,
         reporter_name: user.name,
-        ...report,
+        seller_id: report.seller_id,
+        seller_name: report.seller_name,
+        order_id: report.order_id || null,
+        type: report.type as any,
+        description: report.description,
       });
       if (error) throw error;
     },
