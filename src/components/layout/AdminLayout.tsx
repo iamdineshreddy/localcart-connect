@@ -1,5 +1,5 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '@/contexts/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { LayoutDashboard, Users, Package, ShieldCheck, AlertTriangle, BarChart3, LogOut, Store, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -40,12 +45,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             {navItems.map(item => {
               const active = location.pathname === item.to;
               return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  onClick={() => setSidebarOpen(false)}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${active ? 'bg-background/15 text-background' : 'text-background/60 hover:bg-background/10 hover:text-background'}`}
-                >
+                <Link key={item.to} to={item.to} onClick={() => setSidebarOpen(false)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${active ? 'bg-background/15 text-background' : 'text-background/60 hover:bg-background/10 hover:text-background'}`}>
                   <item.icon className="w-5 h-5" />
                   {item.label}
                 </Link>
@@ -60,7 +61,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <p className="text-sm font-medium truncate">{user?.name}</p>
                 <p className="text-xs text-background/40 truncate">{user?.email}</p>
               </div>
-              <Button variant="ghost" size="icon" className="text-background/50" onClick={() => { logout(); navigate('/login'); }}>
+              <Button variant="ghost" size="icon" className="text-background/50" onClick={handleLogout}>
                 <LogOut className="w-4 h-4" />
               </Button>
             </div>

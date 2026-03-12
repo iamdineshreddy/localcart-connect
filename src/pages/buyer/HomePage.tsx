@@ -1,17 +1,19 @@
 import { Link } from 'react-router-dom';
-import { useStore, useAuth } from '@/contexts/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useProducts } from '@/hooks/useProducts';
+import { useAddToCart } from '@/hooks/useCart';
 import { CATEGORIES } from '@/types';
 import BuyerLayout from '@/components/layout/BuyerLayout';
 import { Button } from '@/components/ui/button';
 import { Star, ShoppingCart, ArrowRight, TrendingUp, Shield, Truck } from 'lucide-react';
-import { toast } from 'sonner';
 
 export default function HomePage() {
-  const { products, addToCart } = useStore();
+  const { data: products = [] } = useProducts({ status: 'approved' });
+  const addToCart = useAddToCart();
   const { user } = useAuth();
-  const approved = products.filter(p => p.status === 'approved');
-  const trending = [...approved].sort((a, b) => b.reviewCount - a.reviewCount).slice(0, 8);
-  const deals = [...approved].sort((a, b) => (b.mrp - b.price) / b.mrp - (a.mrp - a.price) / a.mrp).slice(0, 4);
+  
+  const trending = [...products].sort((a, b) => b.review_count - a.review_count).slice(0, 8);
+  const deals = [...products].sort((a, b) => (b.mrp - b.price) / b.mrp - (a.mrp - a.price) / a.mrp).slice(0, 4);
 
   return (
     <BuyerLayout>
@@ -71,61 +73,73 @@ export default function HomePage() {
       </section>
 
       {/* Deals */}
-      <section className="container mx-auto px-4 py-6">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="font-display text-xl font-bold">🔥 Best Deals</h2>
-          <Link to="/shop" className="text-sm text-primary hover:underline">View all</Link>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {deals.map(product => {
-            const discount = Math.round(((product.mrp - product.price) / product.mrp) * 100);
-            return (
+      {deals.length > 0 && (
+        <section className="container mx-auto px-4 py-6">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="font-display text-xl font-bold">🔥 Best Deals</h2>
+            <Link to="/shop" className="text-sm text-primary hover:underline">View all</Link>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {deals.map(product => {
+              const discount = Math.round(((product.mrp - product.price) / product.mrp) * 100);
+              return (
+                <Link key={product.id} to={`/product/${product.id}`} className="bg-card rounded-xl border overflow-hidden hover:shadow-elevated transition-all group">
+                  <div className="aspect-square bg-muted relative overflow-hidden">
+                    <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" />
+                    {discount > 0 && (
+                      <span className="absolute top-2 left-2 bg-destructive text-destructive-foreground text-xs font-bold px-2 py-0.5 rounded-full">{discount}% OFF</span>
+                    )}
+                  </div>
+                  <div className="p-3">
+                    <p className="font-medium text-sm truncate">{product.name}</p>
+                    <p className="text-xs text-muted-foreground">{product.seller_name}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="font-display font-bold">₹{product.price}</span>
+                      {product.mrp > product.price && <span className="text-xs text-muted-foreground line-through">₹{product.mrp}</span>}
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Trending */}
+      {trending.length > 0 && (
+        <section className="container mx-auto px-4 py-6 pb-12">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="font-display text-xl font-bold">⭐ Trending Products</h2>
+            <Link to="/shop" className="text-sm text-primary hover:underline">View all</Link>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {trending.map(product => (
               <Link key={product.id} to={`/product/${product.id}`} className="bg-card rounded-xl border overflow-hidden hover:shadow-elevated transition-all group">
-                <div className="aspect-square bg-muted relative overflow-hidden">
+                <div className="aspect-square bg-muted overflow-hidden">
                   <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" />
-                  {discount > 0 && (
-                    <span className="absolute top-2 left-2 bg-destructive text-destructive-foreground text-xs font-bold px-2 py-0.5 rounded-full">{discount}% OFF</span>
-                  )}
                 </div>
                 <div className="p-3">
                   <p className="font-medium text-sm truncate">{product.name}</p>
-                  <p className="text-xs text-muted-foreground">{product.sellerName}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="font-display font-bold">₹{product.price}</span>
-                    {product.mrp > product.price && <span className="text-xs text-muted-foreground line-through">₹{product.mrp}</span>}
+                  <div className="flex items-center gap-1 mt-1">
+                    <Star className="w-3 h-3 fill-accent text-accent" />
+                    <span className="text-xs">{product.rating}</span>
+                    <span className="text-xs text-muted-foreground">({product.review_count})</span>
                   </div>
+                  <p className="font-display font-bold mt-1">₹{product.price}</p>
                 </div>
               </Link>
-            );
-          })}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      )}
 
-      {/* Trending */}
-      <section className="container mx-auto px-4 py-6 pb-12">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="font-display text-xl font-bold">⭐ Trending Products</h2>
-          <Link to="/shop" className="text-sm text-primary hover:underline">View all</Link>
+      {products.length === 0 && (
+        <div className="container mx-auto px-4 py-20 text-center">
+          <p className="text-4xl mb-3">🛍️</p>
+          <p className="font-display font-semibold">No products available yet</p>
+          <p className="text-sm text-muted-foreground">Products will appear once sellers add them and admin approves.</p>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {trending.map(product => (
-            <Link key={product.id} to={`/product/${product.id}`} className="bg-card rounded-xl border overflow-hidden hover:shadow-elevated transition-all group">
-              <div className="aspect-square bg-muted overflow-hidden">
-                <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" />
-              </div>
-              <div className="p-3">
-                <p className="font-medium text-sm truncate">{product.name}</p>
-                <div className="flex items-center gap-1 mt-1">
-                  <Star className="w-3 h-3 fill-accent text-accent" />
-                  <span className="text-xs">{product.rating}</span>
-                  <span className="text-xs text-muted-foreground">({product.reviewCount})</span>
-                </div>
-                <p className="font-display font-bold mt-1">₹{product.price}</p>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </section>
+      )}
     </BuyerLayout>
   );
 }

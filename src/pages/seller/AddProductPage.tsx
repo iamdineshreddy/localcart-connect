@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useStore, useAuth } from '@/contexts/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useAddProduct } from '@/hooks/useProducts';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,12 +8,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CATEGORIES, ProductCategory } from '@/types';
-import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
 export default function AddProductPage() {
-  const { addProduct } = useStore();
   const { user } = useAuth();
+  const addProduct = useAddProduct();
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -25,9 +25,9 @@ export default function AddProductPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    addProduct({
-      sellerId: user?.id || 'seller1',
-      sellerName: user?.name || 'Test Seller',
+    addProduct.mutate({
+      seller_id: user?.id || '',
+      seller_name: user?.name || '',
       name,
       description,
       price: Number(price),
@@ -36,10 +36,10 @@ export default function AddProductPage() {
       image: image || 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=300&h=300&fit=crop',
       stock: Number(stock),
       unit,
-      trustScore: 75,
+      trust_score: 75,
+    }, {
+      onSuccess: () => navigate('/seller/products'),
     });
-    toast.success('Product added! Awaiting admin approval.');
-    navigate('/seller/products');
   };
 
   return (
@@ -75,7 +75,9 @@ export default function AddProductPage() {
             <div><Label>Unit</Label><Input value={unit} onChange={e => setUnit(e.target.value)} placeholder="e.g., 1 kg" required /></div>
             <div><Label>Image URL</Label><Input value={image} onChange={e => setImage(e.target.value)} placeholder="https://..." /></div>
           </div>
-          <Button type="submit" className="w-full">Add Product for Review</Button>
+          <Button type="submit" className="w-full" disabled={addProduct.isPending}>
+            {addProduct.isPending ? 'Adding...' : 'Add Product for Review'}
+          </Button>
         </form>
       </div>
     </SellerLayout>

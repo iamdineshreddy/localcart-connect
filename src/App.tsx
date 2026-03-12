@@ -3,7 +3,7 @@ import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider, StoreProvider, useAuth } from "@/contexts/AppContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import NotFound from "./pages/NotFound.tsx";
 
 // Auth
@@ -34,22 +34,28 @@ import AdminKYCPage from "./pages/admin/AdminKYCPage";
 import AdminFraudPage from "./pages/admin/AdminFraudPage";
 import AdminAnalyticsPage from "./pages/admin/AdminAnalyticsPage";
 
+// Delivery
+import DeliveryDashboard from "./pages/delivery/DeliveryDashboard";
+
 const queryClient = new QueryClient();
 
 function ProtectedRoute({ children, roles }: { children: React.ReactNode; roles?: string[] }) {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (roles && user && !roles.includes(user.role)) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
 function AppRoutes() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, loading } = useAuth();
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
 
   return (
     <Routes>
       {/* Auth */}
-      <Route path="/login" element={isAuthenticated ? <Navigate to={user?.role === 'admin' ? '/admin' : user?.role === 'seller' ? '/seller' : '/'} /> : <LoginPage />} />
+      <Route path="/login" element={isAuthenticated ? <Navigate to={user?.role === 'admin' ? '/admin' : user?.role === 'seller' ? '/seller' : user?.role === 'delivery' ? '/delivery' : '/'} /> : <LoginPage />} />
       <Route path="/signup" element={isAuthenticated ? <Navigate to="/" /> : <SignupPage />} />
 
       {/* Buyer */}
@@ -76,6 +82,9 @@ function AppRoutes() {
       <Route path="/admin/fraud" element={<ProtectedRoute roles={['admin']}><AdminFraudPage /></ProtectedRoute>} />
       <Route path="/admin/analytics" element={<ProtectedRoute roles={['admin']}><AdminAnalyticsPage /></ProtectedRoute>} />
 
+      {/* Delivery */}
+      <Route path="/delivery" element={<ProtectedRoute roles={['delivery']}><DeliveryDashboard /></ProtectedRoute>} />
+
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
@@ -88,9 +97,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <StoreProvider>
-            <AppRoutes />
-          </StoreProvider>
+          <AppRoutes />
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
