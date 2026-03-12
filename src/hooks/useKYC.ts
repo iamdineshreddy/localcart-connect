@@ -48,10 +48,19 @@ export function useAllKYC() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('kyc_documents')
-        .select('*, profiles!kyc_documents_seller_id_fkey(name, email)')
+        .select('*')
         .order('submitted_at', { ascending: false });
       if (error) throw error;
-      return (data || []) as (KYCDocument & { profiles: { name: string; email: string } })[];
+      
+      // Fetch seller profiles separately
+      const sellerIds = (data || []).map((d: any) => d.seller_id);
+      const { data: profiles } = await supabase.from('profiles').select('id, name, email').in('id', sellerIds);
+      const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
+      
+      return (data || []).map((d: any) => ({
+        ...d,
+        profiles: profileMap.get(d.seller_id) || { name: '', email: '' },
+      })) as unknown as (KYCDocument & { profiles: { name: string; email: string } })[];
     },
   });
 }
