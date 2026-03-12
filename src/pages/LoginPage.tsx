@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '@/contexts/AppContext';
-import { UserRole } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,15 +13,16 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (login(email, password)) {
-      // Redirect based on role
-      if (email === 'admin@test.com') navigate('/admin');
-      else if (email === 'seller@test.com') navigate('/seller');
-      else navigate('/');
+    setLoading(true);
+    const success = await login(email, password);
+    setLoading(false);
+    if (success) {
       toast.success('Welcome back!');
+      // Auth state change will handle redirect via App.tsx
     } else {
       toast.error('Invalid credentials');
     }
@@ -79,7 +79,9 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
-            <Button type="submit" className="w-full">Sign In</Button>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? 'Signing in...' : 'Sign In'}
+            </Button>
           </form>
 
           <p className="text-center text-sm text-muted-foreground mt-4">
