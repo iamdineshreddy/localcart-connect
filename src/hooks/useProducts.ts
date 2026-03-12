@@ -82,7 +82,7 @@ export function useUpdateProductStatus() {
   return useMutation({
     mutationFn: async ({ id, status, rejection_reason }: { id: string; status: string; rejection_reason?: string }) => {
       const { error } = await supabase.from('products').update({ 
-        status, 
+        status: status as any, 
         rejection_reason,
         updated_at: new Date().toISOString() 
       }).eq('id', id);

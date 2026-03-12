@@ -61,7 +61,7 @@ export function useUpdateFraudReport() {
     mutationFn: async ({ id, status, admin_action }: { id: string; status: string; admin_action?: string }) => {
       const { error } = await supabase
         .from('fraud_reports')
-        .update({ status, admin_action, updated_at: new Date().toISOString() })
+        .update({ status: status as any, admin_action, updated_at: new Date().toISOString() })
         .eq('id', id);
       if (error) throw error;
     },

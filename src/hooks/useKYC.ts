@@ -106,7 +106,7 @@ export function useUpdateKYCStatus() {
     mutationFn: async ({ id, status, rejection_reason }: { id: string; status: string; rejection_reason?: string }) => {
       const { error } = await supabase
         .from('kyc_documents')
-        .update({ status, rejection_reason, reviewed_at: new Date().toISOString() })
+        .update({ status: status as any, rejection_reason, reviewed_at: new Date().toISOString() })
         .eq('id', id);
       if (error) throw error;
     },
