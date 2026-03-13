@@ -461,6 +461,10 @@ export type Database = {
     }
     Functions: {
       calculate_trust_score: { Args: { _seller_id: string }; Returns: number }
+      decrement_stock: {
+        Args: { _product_id: string; _quantity: number }
+        Returns: undefined
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]

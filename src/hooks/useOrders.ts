@@ -95,6 +95,14 @@ export function usePlaceOrder() {
       const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
       if (itemsError) throw itemsError;
 
+      // Decrement stock for each product
+      for (const item of items) {
+        await supabase.rpc('decrement_stock', {
+          _product_id: item.product_id,
+          _quantity: item.quantity,
+        });
+      }
+
       // Clear cart
       await supabase.from('cart_items').delete().eq('user_id', user.id);
       
@@ -103,6 +111,7 @@ export function usePlaceOrder() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['orders'] });
       qc.invalidateQueries({ queryKey: ['cart'] });
+      qc.invalidateQueries({ queryKey: ['products'] });
       toast.success('Order placed successfully!');
     },
     onError: (e: Error) => toast.error(e.message),
