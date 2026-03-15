@@ -1,6 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart, useRemoveFromCart, useUpdateCartQuantity } from '@/hooks/useCart';
-import { usePlaceOrder } from '@/hooks/useOrders';
+import { usePlaceOrder, useOrders } from '@/hooks/useOrders';
 import BuyerLayout from '@/components/layout/BuyerLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { Trash2, ShoppingBag, Minus, Plus, MapPin, Loader2 } from 'lucide-react'
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useState } from 'react';
+import OrderTimeline from '@/components/OrderTimeline';
 
 declare global {
   interface Window {
@@ -108,6 +109,9 @@ export default function CartPage() {
       placeOrderFn();
     }
   };
+
+  const { data: activeOrders = [] } = useOrders('buyer');
+  const recentActiveOrders = activeOrders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').slice(0, 3);
 
   if (isLoading) return <BuyerLayout><div className="container mx-auto px-4 py-20 text-center text-muted-foreground">Loading...</div></BuyerLayout>;
 
@@ -215,6 +219,29 @@ export default function CartPage() {
             )}
           </div>
         </div>
+
+        {/* Active Orders Tracking */}
+        {recentActiveOrders.length > 0 && (
+          <div className="mt-8">
+            <h2 className="font-display text-xl font-bold mb-4">📦 Active Orders</h2>
+            <div className="space-y-4">
+              {recentActiveOrders.map(order => (
+                <div key={order.id} className="bg-card border rounded-xl p-5">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="font-display font-semibold">Order #{order.id.slice(0, 8)}</p>
+                    <span className="text-xs text-muted-foreground">{new Date(order.created_at).toLocaleDateString()}</span>
+                  </div>
+                  <OrderTimeline status={order.status} />
+                  <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground">
+                    <span>{order.items.length} item{order.items.length > 1 ? 's' : ''}</span>
+                    <span>•</span>
+                    <span className="font-display font-bold text-foreground">₹{order.total}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </BuyerLayout>
   );
