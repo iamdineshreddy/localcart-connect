@@ -220,6 +220,30 @@ export default function CartPage() {
           </div>
         </div>
       </div>
+
+        {/* Active Orders Tracking */}
+        {recentActiveOrders.length > 0 && (
+          <div className="mt-8">
+            <h2 className="font-display text-xl font-bold mb-4">📦 Active Orders</h2>
+            <div className="space-y-4">
+              {recentActiveOrders.map(order => (
+                <div key={order.id} className="bg-card border rounded-xl p-5">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="font-display font-semibold">Order #{order.id.slice(0, 8)}</p>
+                    <span className="text-xs text-muted-foreground">{new Date(order.created_at).toLocaleDateString()}</span>
+                  </div>
+                  <OrderTimeline status={order.status} />
+                  <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground">
+                    <span>{order.items.length} item{order.items.length > 1 ? 's' : ''}</span>
+                    <span>•</span>
+                    <span className="font-display font-bold text-foreground">₹{order.total}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </BuyerLayout>
   );
 }
