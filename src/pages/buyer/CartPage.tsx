@@ -1,6 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart, useRemoveFromCart, useUpdateCartQuantity } from '@/hooks/useCart';
-import { usePlaceOrder } from '@/hooks/useOrders';
+import { usePlaceOrder, useOrders } from '@/hooks/useOrders';
 import BuyerLayout from '@/components/layout/BuyerLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { Trash2, ShoppingBag, Minus, Plus, MapPin, Loader2 } from 'lucide-react'
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useState } from 'react';
+import OrderTimeline from '@/components/OrderTimeline';
 
 declare global {
   interface Window {
