@@ -4,10 +4,16 @@ import { usePlaceOrder } from '@/hooks/useOrders';
 import BuyerLayout from '@/components/layout/BuyerLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2, ShoppingBag, Minus, Plus } from 'lucide-react';
+import { Trash2, ShoppingBag, Minus, Plus, MapPin, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useState } from 'react';
+
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
 
 export default function CartPage() {
   const { data: cart = [], isLoading } = useCart();
@@ -17,11 +23,43 @@ export default function CartPage() {
   const { user } = useAuth();
   const [address, setAddress] = useState('');
   const [showCheckout, setShowCheckout] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'online'>('cod');
+  const [locating, setLocating] = useState(false);
 
   const cartTotal = cart.reduce((sum, item) => sum + (item.product?.price || 0) * item.quantity, 0);
 
-  const handleOrder = () => {
-    if (!address.trim()) { toast.error('Enter delivery address'); return; }
+  const handleGetLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error('Geolocation is not supported by your browser');
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`
+          );
+          const data = await res.json();
+          const addr = data.display_name || `${latitude}, ${longitude}`;
+          setAddress(addr);
+          toast.success('Location detected!');
+        } catch {
+          toast.error('Could not fetch address from location');
+        } finally {
+          setLocating(false);
+        }
+      },
+      (err) => {
+        setLocating(false);
+        toast.error(err.message || 'Could not get your location');
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const placeOrderFn = (paymentId?: string) => {
     placeOrder.mutate({
       items: cart.map(item => ({
         product_id: item.product_id,
@@ -34,9 +72,41 @@ export default function CartPage() {
       })),
       total: cartTotal,
       address,
+      payment_method: paymentMethod,
+      payment_id: paymentId,
     });
     setShowCheckout(false);
     setAddress('');
+  };
+
+  const handleOrder = () => {
+    if (!address.trim()) { toast.error('Enter delivery address'); return; }
+
+    if (paymentMethod === 'online') {
+      const options = {
+        key: 'rzp_test_SMT1XI6sdyhuQy',
+        amount: Math.round(cartTotal * 100),
+        currency: 'INR',
+        name: 'LOCAL-KART',
+        description: `Order of ${cart.length} items`,
+        handler: (response: any) => {
+          toast.success('Payment successful!');
+          placeOrderFn(response.razorpay_payment_id);
+        },
+        prefill: {
+          email: user?.email || '',
+          name: user?.name || '',
+        },
+        theme: { color: '#16a34a' },
+        modal: {
+          ondismiss: () => toast.info('Payment cancelled'),
+        },
+      };
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } else {
+      placeOrderFn();
+    }
   };
 
   if (isLoading) return <BuyerLayout><div className="container mx-auto px-4 py-20 text-center text-muted-foreground">Loading...</div></BuyerLayout>;
@@ -93,9 +163,50 @@ export default function CartPage() {
 
             {showCheckout ? (
               <div className="mt-4 space-y-3">
-                <Input placeholder="Enter delivery address" value={address} onChange={e => setAddress(e.target.value)} />
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Delivery Address</label>
+                  <Input placeholder="Enter delivery address" value={address} onChange={e => setAddress(e.target.value)} />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 w-full"
+                    onClick={handleGetLocation}
+                    disabled={locating}
+                  >
+                    {locating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <MapPin className="w-4 h-4 mr-2" />}
+                    {locating ? 'Detecting location...' : 'Use Current Location'}
+                  </Button>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Payment Method</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setPaymentMethod('cod')}
+                      className={`p-3 rounded-lg border-2 text-center text-sm font-medium transition-colors ${
+                        paymentMethod === 'cod'
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border hover:border-muted-foreground'
+                      }`}
+                    >
+                      💵 Cash on Delivery
+                    </button>
+                    <button
+                      onClick={() => setPaymentMethod('online')}
+                      className={`p-3 rounded-lg border-2 text-center text-sm font-medium transition-colors ${
+                        paymentMethod === 'online'
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border hover:border-muted-foreground'
+                      }`}
+                    >
+                      💳 Pay Online
+                    </button>
+                  </div>
+                </div>
+
                 <Button className="w-full" onClick={handleOrder} disabled={placeOrder.isPending}>
-                  <ShoppingBag className="w-4 h-4 mr-2" />{placeOrder.isPending ? 'Placing...' : 'Place Order'}
+                  <ShoppingBag className="w-4 h-4 mr-2" />
+                  {placeOrder.isPending ? 'Placing...' : paymentMethod === 'online' ? `Pay ₹${cartTotal}` : 'Place Order (COD)'}
                 </Button>
                 <Button variant="outline" className="w-full" onClick={() => setShowCheckout(false)}>Cancel</Button>
               </div>
