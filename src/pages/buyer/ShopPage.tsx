@@ -46,6 +46,8 @@ export default function ShopPage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {filtered.map(product => {
               const discount = Math.round(((product.mrp - product.price) / product.mrp) * 100);
+              const sellerTrust = trustScores.find(t => t.seller_id === product.seller_id);
+              const badge = sellerTrust ? getBadgeInfo(sellerTrust.badge) : null;
               return (
                 <div key={product.id} className="bg-card rounded-xl border overflow-hidden hover:shadow-elevated transition-all group">
                   <Link to={`/product/${product.id}`}>
@@ -53,6 +55,11 @@ export default function ShopPage() {
                       <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" />
                       {discount > 0 && (
                         <span className="absolute top-2 left-2 bg-destructive text-destructive-foreground text-xs font-bold px-2 py-0.5 rounded-full">{discount}% OFF</span>
+                      )}
+                      {badge && (
+                        <span className={`absolute top-2 right-2 text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${badge.color}`}>
+                          {badge.emoji} {badge.label}
+                        </span>
                       )}
                     </div>
                   </Link>
@@ -64,6 +71,11 @@ export default function ShopPage() {
                     <div className="flex items-center gap-1 mt-1">
                       <Star className="w-3 h-3 fill-accent text-accent" />
                       <span className="text-xs">{product.rating}</span>
+                      {sellerTrust && (
+                        <span className="text-[10px] text-muted-foreground ml-1 flex items-center gap-0.5">
+                          <Shield className="w-2.5 h-2.5" />{sellerTrust.total_score}%
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center justify-between mt-2">
                       <div>
