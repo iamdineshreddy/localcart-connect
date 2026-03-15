@@ -219,7 +219,6 @@ export default function CartPage() {
             )}
           </div>
         </div>
-      </div>
 
         {/* Active Orders Tracking */}
         {recentActiveOrders.length > 0 && (
