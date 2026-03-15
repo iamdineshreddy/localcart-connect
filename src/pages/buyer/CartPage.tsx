@@ -110,6 +110,9 @@ export default function CartPage() {
     }
   };
 
+  const { data: activeOrders = [] } = useOrders('buyer');
+  const recentActiveOrders = activeOrders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').slice(0, 3);
+
   if (isLoading) return <BuyerLayout><div className="container mx-auto px-4 py-20 text-center text-muted-foreground">Loading...</div></BuyerLayout>;
 
   if (cart.length === 0) {
