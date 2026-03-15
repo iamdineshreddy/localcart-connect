@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 export default function ShopPage() {
   const { data: allProducts = [], isLoading } = useProducts({ status: 'approved' });
   const addToCart = useAddToCart();
+  const { data: trustScores = [] } = useAllTrustScores();
   const [searchParams] = useSearchParams();
   const category = searchParams.get('category') as ProductCategory | null;
   const search = searchParams.get('search')?.toLowerCase() || '';
