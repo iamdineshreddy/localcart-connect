@@ -2,9 +2,10 @@ import { useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useProducts } from '@/hooks/useProducts';
 import { useAddToCart } from '@/hooks/useCart';
+import { useAllTrustScores, getBadgeInfo } from '@/hooks/useTrustScore';
 import { CATEGORIES, ProductCategory } from '@/types';
 import BuyerLayout from '@/components/layout/BuyerLayout';
-import { Star, ShoppingCart } from 'lucide-react';
+import { Star, ShoppingCart, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function ShopPage() {

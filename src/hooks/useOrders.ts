@@ -64,7 +64,7 @@ export function usePlaceOrder() {
   const qc = useQueryClient();
   const { user } = useAuth();
   return useMutation({
-    mutationFn: async ({ items, total, address }: { items: Omit<OrderItem, 'id' | 'order_id'>[]; total: number; address: string }) => {
+    mutationFn: async ({ items, total, address, payment_method, payment_id }: { items: Omit<OrderItem, 'id' | 'order_id'>[]; total: number; address: string; payment_method?: string; payment_id?: string }) => {
       if (!user) throw new Error('Not authenticated');
       
       // Create order
@@ -75,7 +75,9 @@ export function usePlaceOrder() {
           buyer_name: user.name,
           total,
           address,
-        })
+          payment_method: payment_method || 'cod',
+          payment_id: payment_id || null,
+        } as any)
         .select()
         .single();
       if (orderError) throw orderError;
