@@ -52,9 +52,18 @@ export default function CartPage() {
   const { data: activeOrders = [] } = useOrders('buyer');
   const recentActiveOrders = activeOrders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').slice(0, 3);
 
-  // Seller locations for active orders
+  // Seller locations for cart items AND active orders
+  const cartSellerIds = [...new Set(cart.map(i => i.product?.seller_id).filter(Boolean) as string[])];
   const orderSellerIds = [...new Set(recentActiveOrders.flatMap(o => o.items.map(i => i.seller_id)))];
-  const { data: sellerLocations = {} } = useSellerLocations(orderSellerIds);
+  const allSellerIds = [...new Set([...cartSellerIds, ...orderSellerIds])];
+  const { data: sellerLocations = {} } = useSellerLocations(allSellerIds);
+
+  const getCartItemDistance = (sellerId: string) => {
+    if (!buyerLocation?.latitude || !buyerLocation?.longitude) return null;
+    const s = sellerLocations[sellerId];
+    if (!s?.latitude || !s?.longitude) return null;
+    return calculateDistance(buyerLocation.latitude, buyerLocation.longitude, s.latitude, s.longitude);
+  };
 
   const cartTotal = cart.reduce((sum, item) => sum + (item.product?.price || 0) * item.quantity, 0);
 
@@ -163,26 +172,43 @@ export default function CartPage() {
 
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-3">
-            {cart.map(item => (
-              <div key={item.id} className="flex gap-4 bg-card border rounded-xl p-4">
-                <img src={item.product?.image} alt={item.product?.name} className="w-20 h-20 rounded-lg object-cover" />
-                <div className="flex-1 min-w-0">
-                  <Link to={`/product/${item.product_id}`} className="font-medium text-sm hover:text-primary">{item.product?.name}</Link>
-                  <p className="text-xs text-muted-foreground">{item.product?.seller_name}</p>
-                  <p className="font-display font-bold mt-1">₹{item.product?.price}</p>
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeFromCart.mutate(item.id)}>
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                  <div className="flex items-center border rounded-lg">
-                    <button onClick={() => updateQuantity.mutate({ itemId: item.id, quantity: item.quantity - 1 })} className="px-2 py-1 hover:bg-muted"><Minus className="w-3 h-3" /></button>
-                    <span className="px-3 py-1 border-x text-sm">{item.quantity}</span>
-                    <button onClick={() => updateQuantity.mutate({ itemId: item.id, quantity: item.quantity + 1 })} className="px-2 py-1 hover:bg-muted"><Plus className="w-3 h-3" /></button>
+            {cart.map(item => {
+              const sellerId = item.product?.seller_id;
+              const dist = sellerId ? getCartItemDistance(sellerId) : null;
+              const eta = dist != null ? getEstimatedDelivery(dist) : null;
+              return (
+                <div key={item.id} className="flex gap-4 bg-card border rounded-xl p-4">
+                  <img src={item.product?.image} alt={item.product?.name} className="w-20 h-20 rounded-lg object-cover" />
+                  <div className="flex-1 min-w-0">
+                    <Link to={`/product/${item.product_id}`} className="font-medium text-sm hover:text-primary">{item.product?.name}</Link>
+                    <p className="text-xs text-muted-foreground">{item.product?.seller_name}</p>
+                    <p className="font-display font-bold mt-1">₹{item.product?.price}</p>
+                    {dist != null && (
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-accent text-accent-foreground">
+                          <MapPin className="w-2.5 h-2.5" /> {dist.toFixed(1)} km
+                        </span>
+                        {eta && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-secondary/20 text-secondary-foreground">
+                            <Clock className="w-2.5 h-2.5" /> {eta}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeFromCart.mutate(item.id)}>
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                    <div className="flex items-center border rounded-lg">
+                      <button onClick={() => updateQuantity.mutate({ itemId: item.id, quantity: item.quantity - 1 })} className="px-2 py-1 hover:bg-muted"><Minus className="w-3 h-3" /></button>
+                      <span className="px-3 py-1 border-x text-sm">{item.quantity}</span>
+                      <button onClick={() => updateQuantity.mutate({ itemId: item.id, quantity: item.quantity + 1 })} className="px-2 py-1 hover:bg-muted"><Plus className="w-3 h-3" /></button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="bg-card border rounded-xl p-6 h-fit sticky top-32">

@@ -3,9 +3,11 @@ import { useProduct } from '@/hooks/useProducts';
 import { useAddToCart } from '@/hooks/useCart';
 import { useWishlist, useAddToWishlist, useRemoveFromWishlist } from '@/hooks/useWishlist';
 import { useTrustScore, getBadgeInfo } from '@/hooks/useTrustScore';
+import { useUserLocation, useSellerLocation } from '@/hooks/useUserLocation';
+import { calculateDistance, getEstimatedDelivery } from '@/lib/distance';
 import BuyerLayout from '@/components/layout/BuyerLayout';
 import { Button } from '@/components/ui/button';
-import { Star, ShoppingCart, Heart, Shield, ArrowLeft } from 'lucide-react';
+import { Star, ShoppingCart, Heart, Shield, ArrowLeft, MapPin, Clock } from 'lucide-react';
 import { useState } from 'react';
 
 export default function ProductDetailPage() {
@@ -16,7 +18,14 @@ export default function ProductDetailPage() {
   const addToWishlist = useAddToWishlist();
   const removeFromWishlist = useRemoveFromWishlist();
   const { data: trustScore } = useTrustScore(product?.seller_id || '');
+  const { data: buyerLocation } = useUserLocation();
+  const { data: sellerLocation } = useSellerLocation(product?.seller_id);
   const [qty, setQty] = useState(1);
+
+  const distance = (buyerLocation?.latitude && buyerLocation?.longitude && sellerLocation?.latitude && sellerLocation?.longitude)
+    ? calculateDistance(buyerLocation.latitude, buyerLocation.longitude, sellerLocation.latitude, sellerLocation.longitude)
+    : null;
+  const estimatedTime = distance != null ? getEstimatedDelivery(distance) : null;
 
   if (isLoading) return <BuyerLayout><div className="container mx-auto px-4 py-20 text-center text-muted-foreground">Loading...</div></BuyerLayout>;
 
@@ -85,6 +94,20 @@ export default function ProductDetailPage() {
             <p className="text-muted-foreground mt-4">{product.description}</p>
             <p className="text-sm text-muted-foreground mt-2">Unit: {product.unit} · Stock: {product.stock > 0 ? `${product.stock} available` : 'Out of stock'}</p>
             <p className="text-sm mt-1">Sold by: <span className="font-medium text-primary">{product.seller_name}</span></p>
+
+            {/* Distance & Estimated Delivery */}
+            {distance != null && (
+              <div className="flex flex-wrap items-center gap-3 mt-3">
+                <span className="inline-flex items-center gap-1.5 text-sm font-medium px-3 py-1 rounded-full bg-accent text-accent-foreground">
+                  <MapPin className="w-3.5 h-3.5" /> {distance.toFixed(1)} km away
+                </span>
+                {estimatedTime && (
+                  <span className="inline-flex items-center gap-1.5 text-sm font-medium px-3 py-1 rounded-full bg-secondary/20 text-secondary-foreground">
+                    <Clock className="w-3.5 h-3.5" /> Est. delivery: {estimatedTime}
+                  </span>
+                )}
+              </div>
+            )}
 
             <div className="flex items-center gap-3 mt-6">
               <span className="text-sm font-medium">Qty:</span>
