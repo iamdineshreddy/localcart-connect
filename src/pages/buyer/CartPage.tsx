@@ -1,19 +1,40 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart, useRemoveFromCart, useUpdateCartQuantity } from '@/hooks/useCart';
 import { usePlaceOrder, useOrders } from '@/hooks/useOrders';
+import { useUserLocation } from '@/hooks/useUserLocation';
 import BuyerLayout from '@/components/layout/BuyerLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2, ShoppingBag, Minus, Plus, MapPin, Loader2 } from 'lucide-react';
+import { Trash2, ShoppingBag, Minus, Plus, MapPin, Loader2, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useState } from 'react';
 import OrderTimeline from '@/components/OrderTimeline';
+import { calculateDistance, getEstimatedDelivery } from '@/lib/distance';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 declare global {
   interface Window {
     Razorpay: any;
   }
+}
+
+function useSellerLocations(sellerIds: string[]) {
+  return useQuery({
+    queryKey: ['seller-locations-cart', sellerIds],
+    queryFn: async () => {
+      if (!sellerIds.length) return {};
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, latitude, longitude')
+        .in('id', sellerIds);
+      const map: Record<string, { latitude: number | null; longitude: number | null }> = {};
+      (data || []).forEach((p: any) => { map[p.id] = { latitude: p.latitude, longitude: p.longitude }; });
+      return map;
+    },
+    enabled: sellerIds.length > 0,
+  });
 }
 
 export default function CartPage() {
@@ -27,7 +48,23 @@ export default function CartPage() {
   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'online'>('cod');
   const [locating, setLocating] = useState(false);
 
+  const { data: buyerLocation } = useUserLocation();
+  const { data: activeOrders = [] } = useOrders('buyer');
+  const recentActiveOrders = activeOrders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').slice(0, 3);
+
+  // Seller locations for active orders
+  const orderSellerIds = [...new Set(recentActiveOrders.flatMap(o => o.items.map(i => i.seller_id)))];
+  const { data: sellerLocations = {} } = useSellerLocations(orderSellerIds);
+
   const cartTotal = cart.reduce((sum, item) => sum + (item.product?.price || 0) * item.quantity, 0);
+
+  const getOrderDistance = (order: typeof recentActiveOrders[0]) => {
+    if (!buyerLocation?.latitude || !buyerLocation?.longitude) return null;
+    const sellerId = order.items[0]?.seller_id;
+    const sellerLoc = sellerLocations[sellerId];
+    if (!sellerLoc?.latitude || !sellerLoc?.longitude) return null;
+    return calculateDistance(buyerLocation.latitude, buyerLocation.longitude, sellerLoc.latitude, sellerLoc.longitude);
+  };
 
   const handleGetLocation = () => {
     if (!navigator.geolocation) {
@@ -82,7 +119,6 @@ export default function CartPage() {
 
   const handleOrder = () => {
     if (!address.trim()) { toast.error('Enter delivery address'); return; }
-
     if (paymentMethod === 'online') {
       const options = {
         key: 'rzp_test_SMT1XI6sdyhuQy',
@@ -94,14 +130,9 @@ export default function CartPage() {
           toast.success('Payment successful!');
           placeOrderFn(response.razorpay_payment_id);
         },
-        prefill: {
-          email: user?.email || '',
-          name: user?.name || '',
-        },
+        prefill: { email: user?.email || '', name: user?.name || '' },
         theme: { color: '#16a34a' },
-        modal: {
-          ondismiss: () => toast.info('Payment cancelled'),
-        },
+        modal: { ondismiss: () => toast.info('Payment cancelled') },
       };
       const rzp = new window.Razorpay(options);
       rzp.open();
@@ -109,9 +140,6 @@ export default function CartPage() {
       placeOrderFn();
     }
   };
-
-  const { data: activeOrders = [] } = useOrders('buyer');
-  const recentActiveOrders = activeOrders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').slice(0, 3);
 
   if (isLoading) return <BuyerLayout><div className="container mx-auto px-4 py-20 text-center text-muted-foreground">Loading...</div></BuyerLayout>;
 
@@ -170,44 +198,28 @@ export default function CartPage() {
                 <div>
                   <label className="text-sm font-medium mb-1 block">Delivery Address</label>
                   <Input placeholder="Enter delivery address" value={address} onChange={e => setAddress(e.target.value)} />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-2 w-full"
-                    onClick={handleGetLocation}
-                    disabled={locating}
-                  >
+                  <Button variant="outline" size="sm" className="mt-2 w-full" onClick={handleGetLocation} disabled={locating}>
                     {locating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <MapPin className="w-4 h-4 mr-2" />}
                     {locating ? 'Detecting location...' : 'Use Current Location'}
                   </Button>
                 </div>
-
                 <div>
                   <label className="text-sm font-medium mb-2 block">Payment Method</label>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => setPaymentMethod('cod')}
                       className={`p-3 rounded-lg border-2 text-center text-sm font-medium transition-colors ${
-                        paymentMethod === 'cod'
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'border-border hover:border-muted-foreground'
+                        paymentMethod === 'cod' ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:border-muted-foreground'
                       }`}
-                    >
-                      💵 Cash on Delivery
-                    </button>
+                    >💵 Cash on Delivery</button>
                     <button
                       onClick={() => setPaymentMethod('online')}
                       className={`p-3 rounded-lg border-2 text-center text-sm font-medium transition-colors ${
-                        paymentMethod === 'online'
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'border-border hover:border-muted-foreground'
+                        paymentMethod === 'online' ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:border-muted-foreground'
                       }`}
-                    >
-                      💳 Pay Online
-                    </button>
+                    >💳 Pay Online</button>
                   </div>
                 </div>
-
                 <Button className="w-full" onClick={handleOrder} disabled={placeOrder.isPending}>
                   <ShoppingBag className="w-4 h-4 mr-2" />
                   {placeOrder.isPending ? 'Placing...' : paymentMethod === 'online' ? `Pay ₹${cartTotal}` : 'Place Order (COD)'}
@@ -220,25 +232,42 @@ export default function CartPage() {
           </div>
         </div>
 
-        {/* Active Orders Tracking */}
+        {/* Active Orders Tracking with Distance & ETA */}
         {recentActiveOrders.length > 0 && (
           <div className="mt-8">
             <h2 className="font-display text-xl font-bold mb-4">📦 Active Orders</h2>
             <div className="space-y-4">
-              {recentActiveOrders.map(order => (
-                <div key={order.id} className="bg-card border rounded-xl p-5">
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="font-display font-semibold">Order #{order.id.slice(0, 8)}</p>
-                    <span className="text-xs text-muted-foreground">{new Date(order.created_at).toLocaleDateString()}</span>
+              {recentActiveOrders.map(order => {
+                const distance = getOrderDistance(order);
+                const estimatedTime = distance != null ? getEstimatedDelivery(distance) : null;
+                return (
+                  <div key={order.id} className="bg-card border rounded-xl p-5">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="font-display font-semibold">Order #{order.id.slice(0, 8)}</p>
+                      <span className="text-xs text-muted-foreground">{new Date(order.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <OrderTimeline status={order.status} />
+                    <div className="flex flex-wrap items-center gap-3 mt-2 text-sm">
+                      <span className="text-muted-foreground">{order.items.length} item{order.items.length > 1 ? 's' : ''}</span>
+                      <span className="text-muted-foreground">•</span>
+                      <span className="font-display font-bold text-foreground">₹{order.total}</span>
+                      {distance != null && (
+                        <>
+                          <span className="text-muted-foreground">•</span>
+                          <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-accent text-accent-foreground">
+                            <MapPin className="w-3 h-3" /> {distance.toFixed(1)} km
+                          </span>
+                        </>
+                      )}
+                      {estimatedTime && (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-secondary/20 text-secondary-foreground">
+                          <Clock className="w-3 h-3" /> {estimatedTime}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <OrderTimeline status={order.status} />
-                  <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground">
-                    <span>{order.items.length} item{order.items.length > 1 ? 's' : ''}</span>
-                    <span>•</span>
-                    <span className="font-display font-bold text-foreground">₹{order.total}</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
