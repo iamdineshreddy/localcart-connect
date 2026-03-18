@@ -15,9 +15,31 @@ export default function ShopPage() {
   const { data: allProducts = [], isLoading } = useProducts({ status: 'approved' });
   const addToCart = useAddToCart();
   const { data: trustScores = [] } = useAllTrustScores();
+  const { data: buyerLocation } = useUserLocation();
   const [searchParams] = useSearchParams();
   const category = searchParams.get('category') as ProductCategory | null;
   const search = searchParams.get('search')?.toLowerCase() || '';
+
+  // Fetch seller locations for distance calc
+  const sellerIds = [...new Set(allProducts.map(p => p.seller_id))];
+  const { data: sellerLocMap = {} } = useQuery({
+    queryKey: ['seller-locs-shop', sellerIds],
+    queryFn: async () => {
+      if (!sellerIds.length) return {};
+      const { data } = await supabase.from('profiles').select('id, latitude, longitude').in('id', sellerIds);
+      const m: Record<string, { latitude: number | null; longitude: number | null }> = {};
+      (data || []).forEach((p: any) => { m[p.id] = { latitude: p.latitude, longitude: p.longitude }; });
+      return m;
+    },
+    enabled: sellerIds.length > 0,
+  });
+
+  const getDistance = (sellerId: string) => {
+    if (!buyerLocation?.latitude || !buyerLocation?.longitude) return null;
+    const s = sellerLocMap[sellerId];
+    if (!s?.latitude || !s?.longitude) return null;
+    return calculateDistance(buyerLocation.latitude, buyerLocation.longitude, s.latitude, s.longitude);
+  };
 
   const filtered = useMemo(() => {
     return allProducts
