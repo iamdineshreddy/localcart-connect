@@ -73,6 +73,7 @@ export default function ShopPage() {
               const discount = Math.round(((product.mrp - product.price) / product.mrp) * 100);
               const sellerTrust = trustScores.find(t => t.seller_id === product.seller_id);
               const badge = sellerTrust ? getBadgeInfo(sellerTrust.badge) : null;
+              const dist = getDistance(product.seller_id);
               return (
                 <div key={product.id} className="bg-card rounded-xl border overflow-hidden hover:shadow-elevated transition-all group">
                   <Link to={`/product/${product.id}`}>
