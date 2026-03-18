@@ -3,11 +3,14 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useProducts } from '@/hooks/useProducts';
 import { useAddToCart } from '@/hooks/useCart';
 import { useAllTrustScores, getBadgeInfo } from '@/hooks/useTrustScore';
+import { useUserLocation } from '@/hooks/useUserLocation';
+import { calculateDistance } from '@/lib/distance';
 import { CATEGORIES, ProductCategory } from '@/types';
 import BuyerLayout from '@/components/layout/BuyerLayout';
-import { Star, ShoppingCart, Shield } from 'lucide-react';
+import { Star, ShoppingCart, Shield, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 export default function ShopPage() {
   const { data: allProducts = [], isLoading } = useProducts({ status: 'approved' });
   const addToCart = useAddToCart();
