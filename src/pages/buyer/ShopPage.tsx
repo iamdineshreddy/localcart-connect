@@ -103,6 +103,11 @@ export default function ShopPage() {
                         </span>
                       )}
                     </div>
+                    {dist != null && (
+                      <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-0.5">
+                        <MapPin className="w-2.5 h-2.5" /> {dist.toFixed(1)} km away
+                      </p>
+                    )}
                     <div className="flex items-center justify-between mt-2">
                       <div>
                         <span className="font-display font-bold">₹{product.price}</span>
