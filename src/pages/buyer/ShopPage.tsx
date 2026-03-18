@@ -3,18 +3,43 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useProducts } from '@/hooks/useProducts';
 import { useAddToCart } from '@/hooks/useCart';
 import { useAllTrustScores, getBadgeInfo } from '@/hooks/useTrustScore';
+import { useUserLocation } from '@/hooks/useUserLocation';
+import { calculateDistance } from '@/lib/distance';
 import { CATEGORIES, ProductCategory } from '@/types';
 import BuyerLayout from '@/components/layout/BuyerLayout';
-import { Star, ShoppingCart, Shield } from 'lucide-react';
+import { Star, ShoppingCart, Shield, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 export default function ShopPage() {
   const { data: allProducts = [], isLoading } = useProducts({ status: 'approved' });
   const addToCart = useAddToCart();
   const { data: trustScores = [] } = useAllTrustScores();
+  const { data: buyerLocation } = useUserLocation();
   const [searchParams] = useSearchParams();
   const category = searchParams.get('category') as ProductCategory | null;
   const search = searchParams.get('search')?.toLowerCase() || '';
+
+  // Fetch seller locations for distance calc
+  const sellerIds = [...new Set(allProducts.map(p => p.seller_id))];
+  const { data: sellerLocMap = {} } = useQuery({
+    queryKey: ['seller-locs-shop', sellerIds],
+    queryFn: async () => {
+      if (!sellerIds.length) return {};
+      const { data } = await supabase.from('profiles').select('id, latitude, longitude').in('id', sellerIds);
+      const m: Record<string, { latitude: number | null; longitude: number | null }> = {};
+      (data || []).forEach((p: any) => { m[p.id] = { latitude: p.latitude, longitude: p.longitude }; });
+      return m;
+    },
+    enabled: sellerIds.length > 0,
+  });
+
+  const getDistance = (sellerId: string) => {
+    if (!buyerLocation?.latitude || !buyerLocation?.longitude) return null;
+    const s = sellerLocMap[sellerId];
+    if (!s?.latitude || !s?.longitude) return null;
+    return calculateDistance(buyerLocation.latitude, buyerLocation.longitude, s.latitude, s.longitude);
+  };
 
   const filtered = useMemo(() => {
     return allProducts
@@ -48,6 +73,7 @@ export default function ShopPage() {
               const discount = Math.round(((product.mrp - product.price) / product.mrp) * 100);
               const sellerTrust = trustScores.find(t => t.seller_id === product.seller_id);
               const badge = sellerTrust ? getBadgeInfo(sellerTrust.badge) : null;
+              const dist = getDistance(product.seller_id);
               return (
                 <div key={product.id} className="bg-card rounded-xl border overflow-hidden hover:shadow-elevated transition-all group">
                   <Link to={`/product/${product.id}`}>
@@ -77,6 +103,11 @@ export default function ShopPage() {
                         </span>
                       )}
                     </div>
+                    {dist != null && (
+                      <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-0.5">
+                        <MapPin className="w-2.5 h-2.5" /> {dist.toFixed(1)} km away
+                      </p>
+                    )}
                     <div className="flex items-center justify-between mt-2">
                       <div>
                         <span className="font-display font-bold">₹{product.price}</span>
