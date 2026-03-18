@@ -18,7 +18,14 @@ export default function ProductDetailPage() {
   const addToWishlist = useAddToWishlist();
   const removeFromWishlist = useRemoveFromWishlist();
   const { data: trustScore } = useTrustScore(product?.seller_id || '');
+  const { data: buyerLocation } = useUserLocation();
+  const { data: sellerLocation } = useSellerLocation(product?.seller_id);
   const [qty, setQty] = useState(1);
+
+  const distance = (buyerLocation?.latitude && buyerLocation?.longitude && sellerLocation?.latitude && sellerLocation?.longitude)
+    ? calculateDistance(buyerLocation.latitude, buyerLocation.longitude, sellerLocation.latitude, sellerLocation.longitude)
+    : null;
+  const estimatedTime = distance != null ? getEstimatedDelivery(distance) : null;
 
   if (isLoading) return <BuyerLayout><div className="container mx-auto px-4 py-20 text-center text-muted-foreground">Loading...</div></BuyerLayout>;
 
