@@ -18,13 +18,12 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const success = await login(email, password);
+    const success = await login(email.trim(), password);
     setLoading(false);
     if (success) {
       toast.success('Welcome back!');
-      // Auth state change will handle redirect via App.tsx
     } else {
-      toast.error('Invalid credentials');
+      toast.error('Invalid credentials. Please check your email and password.');
     }
   };
 
