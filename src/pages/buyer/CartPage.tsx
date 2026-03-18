@@ -52,9 +52,18 @@ export default function CartPage() {
   const { data: activeOrders = [] } = useOrders('buyer');
   const recentActiveOrders = activeOrders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').slice(0, 3);
 
-  // Seller locations for active orders
+  // Seller locations for cart items AND active orders
+  const cartSellerIds = [...new Set(cart.map(i => i.product?.seller_id).filter(Boolean) as string[])];
   const orderSellerIds = [...new Set(recentActiveOrders.flatMap(o => o.items.map(i => i.seller_id)))];
-  const { data: sellerLocations = {} } = useSellerLocations(orderSellerIds);
+  const allSellerIds = [...new Set([...cartSellerIds, ...orderSellerIds])];
+  const { data: sellerLocations = {} } = useSellerLocations(allSellerIds);
+
+  const getCartItemDistance = (sellerId: string) => {
+    if (!buyerLocation?.latitude || !buyerLocation?.longitude) return null;
+    const s = sellerLocations[sellerId];
+    if (!s?.latitude || !s?.longitude) return null;
+    return calculateDistance(buyerLocation.latitude, buyerLocation.longitude, s.latitude, s.longitude);
+  };
 
   const cartTotal = cart.reduce((sum, item) => sum + (item.product?.price || 0) * item.quantity, 0);
 
