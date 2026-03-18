@@ -3,9 +3,11 @@ import { useProduct } from '@/hooks/useProducts';
 import { useAddToCart } from '@/hooks/useCart';
 import { useWishlist, useAddToWishlist, useRemoveFromWishlist } from '@/hooks/useWishlist';
 import { useTrustScore, getBadgeInfo } from '@/hooks/useTrustScore';
+import { useUserLocation, useSellerLocation } from '@/hooks/useUserLocation';
+import { calculateDistance, getEstimatedDelivery } from '@/lib/distance';
 import BuyerLayout from '@/components/layout/BuyerLayout';
 import { Button } from '@/components/ui/button';
-import { Star, ShoppingCart, Heart, Shield, ArrowLeft } from 'lucide-react';
+import { Star, ShoppingCart, Heart, Shield, ArrowLeft, MapPin, Clock } from 'lucide-react';
 import { useState } from 'react';
 
 export default function ProductDetailPage() {
