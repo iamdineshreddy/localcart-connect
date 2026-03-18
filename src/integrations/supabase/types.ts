@@ -347,33 +347,51 @@ export type Database = {
       }
       profiles: {
         Row: {
+          address: string | null
           avatar: string | null
+          city: string | null
           created_at: string
           email: string
           id: string
           is_suspended: boolean
+          latitude: number | null
+          longitude: number | null
           name: string
           phone: string | null
+          pincode: string | null
+          state: string | null
           updated_at: string
         }
         Insert: {
+          address?: string | null
           avatar?: string | null
+          city?: string | null
           created_at?: string
           email?: string
           id: string
           is_suspended?: boolean
+          latitude?: number | null
+          longitude?: number | null
           name?: string
           phone?: string | null
+          pincode?: string | null
+          state?: string | null
           updated_at?: string
         }
         Update: {
+          address?: string | null
           avatar?: string | null
+          city?: string | null
           created_at?: string
           email?: string
           id?: string
           is_suspended?: boolean
+          latitude?: number | null
+          longitude?: number | null
           name?: string
           phone?: string | null
+          pincode?: string | null
+          state?: string | null
           updated_at?: string
         }
         Relationships: []
