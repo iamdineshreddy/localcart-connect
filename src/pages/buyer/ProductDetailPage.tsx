@@ -9,7 +9,7 @@ import { useProductReviews, useMyReview, useSubmitReview } from '@/hooks/useRevi
 import BuyerLayout from '@/components/layout/BuyerLayout';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Star, ShoppingCart, Heart, Shield, ArrowLeft, MapPin, Clock } from 'lucide-react';
+import { Star, ShoppingCart, Heart, Shield, ArrowLeft, MapPin, Clock, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 function StarRating({ value, onChange, readonly = false }: { value: number; onChange?: (v: number) => void; readonly?: boolean }) {
@@ -33,6 +33,37 @@ function StarRating({ value, onChange, readonly = false }: { value: number; onCh
   );
 }
 
+/** Hook to get buyer coordinates — tries profile first, falls back to browser geolocation */
+function useBuyerCoords() {
+  const { data: profileLoc } = useUserLocation();
+  const [browserCoords, setBrowserCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [detecting, setDetecting] = useState(false);
+
+  const hasProfileCoords = !!(profileLoc?.latitude && profileLoc?.longitude);
+
+  useEffect(() => {
+    // If profile already has coords, skip browser geolocation
+    if (hasProfileCoords) return;
+    // Auto-detect via browser
+    if (!navigator.geolocation) return;
+    setDetecting(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setBrowserCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+        setDetecting(false);
+      },
+      () => setDetecting(false),
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }, [hasProfileCoords]);
+
+  const coords = hasProfileCoords
+    ? { latitude: profileLoc!.latitude!, longitude: profileLoc!.longitude! }
+    : browserCoords;
+
+  return { coords, detecting };
+}
+
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: product, isLoading } = useProduct(id || '');
@@ -41,7 +72,7 @@ export default function ProductDetailPage() {
   const addToWishlist = useAddToWishlist();
   const removeFromWishlist = useRemoveFromWishlist();
   const { data: trustScore } = useTrustScore(product?.seller_id || '');
-  const { data: buyerLocation } = useUserLocation();
+  const { coords: buyerCoords, detecting: detectingLocation } = useBuyerCoords();
   const { data: sellerLocation } = useSellerLocation(product?.seller_id);
   const [qty, setQty] = useState(1);
 
@@ -59,8 +90,8 @@ export default function ProductDetailPage() {
     }
   }, [myReview]);
 
-  const distance = (buyerLocation?.latitude && buyerLocation?.longitude && sellerLocation?.latitude && sellerLocation?.longitude)
-    ? calculateDistance(buyerLocation.latitude, buyerLocation.longitude, sellerLocation.latitude, sellerLocation.longitude)
+  const distance = (buyerCoords && sellerLocation?.latitude && sellerLocation?.longitude)
+    ? calculateDistance(buyerCoords.latitude, buyerCoords.longitude, sellerLocation.latitude, sellerLocation.longitude)
     : null;
   const estimatedTime = distance != null ? getEstimatedDelivery(distance) : null;
 
@@ -138,17 +169,25 @@ export default function ProductDetailPage() {
             <p className="text-sm mt-1">Sold by: <span className="font-medium text-primary">{product.seller_name}</span></p>
 
             {/* Distance & Estimated Delivery */}
-            {distance != null && (
+            {detectingLocation && (
+              <div className="flex items-center gap-2 mt-3 text-sm text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" /> Detecting your location for delivery estimate...
+              </div>
+            )}
+            {distance != null && estimatedTime && (
               <div className="flex flex-wrap items-center gap-3 mt-3">
-                <span className="inline-flex items-center gap-1.5 text-sm font-medium px-3 py-1 rounded-full bg-accent text-accent-foreground">
+                <span className="inline-flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-full bg-accent text-accent-foreground">
                   <MapPin className="w-3.5 h-3.5" /> {distance.toFixed(1)} km away
                 </span>
-                {estimatedTime && (
-                  <span className="inline-flex items-center gap-1.5 text-sm font-medium px-3 py-1 rounded-full bg-secondary/20 text-secondary-foreground">
-                    <Clock className="w-3.5 h-3.5" /> Est. delivery: {estimatedTime}
-                  </span>
-                )}
+                <span className="inline-flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-full bg-secondary/20 text-secondary-foreground">
+                  <Clock className="w-3.5 h-3.5" /> Est. delivery: {estimatedTime}
+                </span>
               </div>
+            )}
+            {!detectingLocation && distance == null && (
+              <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
+                <MapPin className="w-3 h-3" /> Enable location access to see delivery estimate
+              </p>
             )}
 
             <div className="flex items-center gap-3 mt-6">
