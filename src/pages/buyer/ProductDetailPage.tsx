@@ -5,10 +5,33 @@ import { useWishlist, useAddToWishlist, useRemoveFromWishlist } from '@/hooks/us
 import { useTrustScore, getBadgeInfo } from '@/hooks/useTrustScore';
 import { useUserLocation, useSellerLocation } from '@/hooks/useUserLocation';
 import { calculateDistance, getEstimatedDelivery } from '@/lib/distance';
+import { useProductReviews, useMyReview, useSubmitReview } from '@/hooks/useReviews';
 import BuyerLayout from '@/components/layout/BuyerLayout';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { Star, ShoppingCart, Heart, Shield, ArrowLeft, MapPin, Clock } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+function StarRating({ value, onChange, readonly = false }: { value: number; onChange?: (v: number) => void; readonly?: boolean }) {
+  const [hover, setHover] = useState(0);
+  return (
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map(i => (
+        <button
+          key={i}
+          type="button"
+          disabled={readonly}
+          className={`${readonly ? 'cursor-default' : 'cursor-pointer'}`}
+          onClick={() => onChange?.(i)}
+          onMouseEnter={() => !readonly && setHover(i)}
+          onMouseLeave={() => !readonly && setHover(0)}
+        >
+          <Star className={`w-5 h-5 ${(hover || value) >= i ? 'fill-accent text-accent' : 'text-muted-foreground/30'}`} />
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -21,6 +44,20 @@ export default function ProductDetailPage() {
   const { data: buyerLocation } = useUserLocation();
   const { data: sellerLocation } = useSellerLocation(product?.seller_id);
   const [qty, setQty] = useState(1);
+
+  // Reviews
+  const { data: reviews = [] } = useProductReviews(id || '');
+  const { data: myReview } = useMyReview(id || '');
+  const submitReview = useSubmitReview();
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState('');
+
+  useEffect(() => {
+    if (myReview) {
+      setReviewRating(myReview.rating);
+      setReviewComment(myReview.comment);
+    }
+  }, [myReview]);
 
   const distance = (buyerLocation?.latitude && buyerLocation?.longitude && sellerLocation?.latitude && sellerLocation?.longitude)
     ? calculateDistance(buyerLocation.latitude, buyerLocation.longitude, sellerLocation.latitude, sellerLocation.longitude)
@@ -47,6 +84,11 @@ export default function ProductDetailPage() {
   const score = trustScore?.total_score ?? product.trust_score;
   const trustLevel = score >= 80 ? 'high' : score >= 60 ? 'medium' : 'low';
   const badge = trustScore ? getBadgeInfo(trustScore.badge) : null;
+
+  const handleSubmitReview = () => {
+    if (reviewRating === 0) return;
+    submitReview.mutate({ productId: product.id, rating: reviewRating, comment: reviewComment });
+  };
 
   return (
     <BuyerLayout>
@@ -130,6 +172,50 @@ export default function ProductDetailPage() {
               </Button>
             </div>
           </div>
+        </div>
+
+        {/* Review Section */}
+        <div className="mt-10">
+          <h2 className="font-display text-xl font-bold mb-4">Ratings & Reviews</h2>
+
+          {/* Write / Edit Review */}
+          <div className="bg-card border rounded-xl p-5 mb-6">
+            <h3 className="font-semibold text-sm mb-2">{myReview ? 'Update your review' : 'Write a review'}</h3>
+            <StarRating value={reviewRating} onChange={setReviewRating} />
+            <Textarea
+              placeholder="Share your experience with this product..."
+              value={reviewComment}
+              onChange={e => setReviewComment(e.target.value)}
+              className="mt-3"
+              rows={3}
+            />
+            <Button
+              size="sm"
+              className="mt-3"
+              onClick={handleSubmitReview}
+              disabled={reviewRating === 0 || submitReview.isPending}
+            >
+              {submitReview.isPending ? 'Submitting...' : myReview ? 'Update Review' : 'Submit Review'}
+            </Button>
+          </div>
+
+          {/* Reviews List */}
+          {reviews.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No reviews yet. Be the first to review!</p>
+          ) : (
+            <div className="space-y-4">
+              {reviews.map(r => (
+                <div key={r.id} className="bg-card border rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-medium text-sm">{r.buyer_name || 'Anonymous'}</span>
+                    <span className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</span>
+                  </div>
+                  <StarRating value={r.rating} readonly />
+                  {r.comment && <p className="text-sm text-muted-foreground mt-2">{r.comment}</p>}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </BuyerLayout>

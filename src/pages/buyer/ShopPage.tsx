@@ -4,13 +4,14 @@ import { useProducts } from '@/hooks/useProducts';
 import { useAddToCart } from '@/hooks/useCart';
 import { useAllTrustScores, getBadgeInfo } from '@/hooks/useTrustScore';
 import { useUserLocation } from '@/hooks/useUserLocation';
-import { calculateDistance } from '@/lib/distance';
+import { calculateDistance, getEstimatedDelivery } from '@/lib/distance';
 import { CATEGORIES, ProductCategory } from '@/types';
 import BuyerLayout from '@/components/layout/BuyerLayout';
-import { Star, ShoppingCart, Shield, MapPin } from 'lucide-react';
+import { Star, ShoppingCart, Shield, MapPin, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+
 export default function ShopPage() {
   const { data: allProducts = [], isLoading } = useProducts({ status: 'approved' });
   const addToCart = useAddToCart();
@@ -74,6 +75,7 @@ export default function ShopPage() {
               const sellerTrust = trustScores.find(t => t.seller_id === product.seller_id);
               const badge = sellerTrust ? getBadgeInfo(sellerTrust.badge) : null;
               const dist = getDistance(product.seller_id);
+              const eta = dist != null ? getEstimatedDelivery(dist) : null;
               return (
                 <div key={product.id} className="bg-card rounded-xl border overflow-hidden hover:shadow-elevated transition-all group">
                   <Link to={`/product/${product.id}`}>
@@ -103,10 +105,18 @@ export default function ShopPage() {
                         </span>
                       )}
                     </div>
+                    {/* Distance & ETA */}
                     {dist != null && (
-                      <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-0.5">
-                        <MapPin className="w-2.5 h-2.5" /> {dist.toFixed(1)} km away
-                      </p>
+                      <div className="flex flex-wrap items-center gap-1 mt-1">
+                        <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                          <MapPin className="w-2.5 h-2.5" /> {dist.toFixed(1)} km
+                        </span>
+                        {eta && (
+                          <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                            <Clock className="w-2.5 h-2.5" /> {eta}
+                          </span>
+                        )}
+                      </div>
                     )}
                     <div className="flex items-center justify-between mt-2">
                       <div>
