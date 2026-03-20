@@ -282,6 +282,44 @@ export type Database = {
         }
         Relationships: []
       }
+      product_reviews: {
+        Row: {
+          buyer_id: string
+          buyer_name: string
+          comment: string
+          created_at: string
+          id: string
+          product_id: string
+          rating: number
+        }
+        Insert: {
+          buyer_id: string
+          buyer_name?: string
+          comment?: string
+          created_at?: string
+          id?: string
+          product_id: string
+          rating: number
+        }
+        Update: {
+          buyer_id?: string
+          buyer_name?: string
+          comment?: string
+          created_at?: string
+          id?: string
+          product_id?: string
+          rating?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_reviews_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           category: string
